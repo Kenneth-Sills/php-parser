@@ -41,7 +41,7 @@ describe("classconstant", () => {
     expect(
       parser.parseEval(
         'class Foo { public const string CONSTANT = "Hello world!"; }',
-        { parser: { version: 830 } }
+        { parser: { version: 803 } }
       )
     ).toMatchSnapshot();
   });
@@ -49,7 +49,7 @@ describe("classconstant", () => {
     expect(() =>
       parser.parseEval(
         'class Foo { public const string CONSTANT = "Hello world!"; }',
-        { parser: { version: 820 } }
+        { parser: { version: 802 } }
       )
     ).toThrowErrorMatchingSnapshot();
   });
