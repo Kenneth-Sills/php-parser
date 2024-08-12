@@ -234,42 +234,53 @@ module.exports = {
       this.next();
     }
 
-    const [nullable, type] =
-      this.version >= 830 ? this.read_optional_type() : [false, null];
+    /*
+     * Reads a constant declaration
+     *
+     * ```ebnf
+     *  constant_declaration ::= (T_STRING | IDENTIFIER) '=' expr
+     * ```
+     * @return {Constant} [:link:](AST.md#constant)
+     */
+    function read_constant_declaration() {
+      const result = this.node("constant");
+      let constName = null;
+      let value = null;
+      if (
+        this.token === this.tok.T_STRING ||
+        (this.version >= 700 && this.is("IDENTIFIER"))
+      ) {
+        constName = this.node("identifier");
+        const name = this.text();
+        this.next();
+        constName = constName(name);
+      } else {
+        this.expect("IDENTIFIER");
+      }
+      if (this.expect("=")) {
+        value = this.next().read_expr();
+      }
+      return result(constName, value);
+    }
+
+    const backup = [this.token, this.lexer.getState()];
+    // Try without a typed constant first
+    let nullable = false, type=null, items;
+    try {
+      items = this.read_list(read_constant_declaration, ",");
+    } catch (e) {
+      if (this.version < 803) {
+        throw e;
+      }
+
+      // rollback state and try with an optional typed constant
+      this.lexer.tokens.push(backup);
+      this.next();
+      [nullable, type] = this.read_optional_type();
+      items = this.read_list(read_constant_declaration, ",");
+    }
 
     const result = this.node("classconstant");
-    const items = this.read_list(
-      /*
-       * Reads a constant declaration
-       *
-       * ```ebnf
-       *  constant_declaration ::= (T_STRING | IDENTIFIER) '=' expr
-       * ```
-       * @return {Constant} [:link:](AST.md#constant)
-       */
-      function read_constant_declaration() {
-        const result = this.node("constant");
-        let constName = null;
-        let value = null;
-        if (
-          this.token === this.tok.T_STRING ||
-          (this.version >= 700 && this.is("IDENTIFIER"))
-        ) {
-          constName = this.node("identifier");
-          const name = this.text();
-          this.next();
-          constName = constName(name);
-        } else {
-          this.expect("IDENTIFIER");
-        }
-        if (this.expect("=")) {
-          value = this.next().read_expr();
-        }
-        return result(constName, value);
-      },
-      ","
-    );
-
     return result(null, items, flags, nullable, type, attrs || []);
   },
   /*
